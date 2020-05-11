@@ -7,8 +7,9 @@ from graph import *
 
 ''' https://artint.info/html/ArtInt_227.html '''
 def value_iterate(graph, goal_id, gamma=.99, epsilon=.01, debug=False):
+    if not isinstance(goal_id, (list, tuple)):
+        goal_id = [goal_id]
     epsilon = epsilon * gamma
-    sz = graph.size
     if debug:
         pr = cProfile.Profile()
         pr.enable()
@@ -27,7 +28,7 @@ def value_iterate(graph, goal_id, gamma=.99, epsilon=.01, debug=False):
                 for i_action, action in enumerate(state.actions):
                     if all([dest == i_state for dest in action.destinations]):
                         continue
-                    action_value[i_action] = sum([action.probabilities[i_sp]*((action.destinations[i_sp] == goal_id)+(1-(action.destinations[i_sp] == goal_id))*value[action.destinations[i_sp]]) for i_sp in range(len(action.destinations))])
+                    action_value[i_action] = sum([action.probabilities[i_sp]*((action.destinations[i_sp] in goal_id)+(1-(action.destinations[i_sp] in goal_id))*value[action.destinations[i_sp]]) for i_sp in range(len(action.destinations))])
                     if action_value[i_action] > action_max:
                         action_max = action_value[i_action]
                         policy[i_state] = i_action
@@ -55,7 +56,7 @@ def evaluate(args):
         for i_action, action in enumerate(state.actions):
             if all([dest == i_state for dest in action.destinations]):
                 continue
-            action_value[i_action] = sum([action.probabilities[i_sp]*((action.destinations[i_sp] == goal_id)+(1-(action.destinations[i_sp] == goal_id))*value[action.destinations[i_sp]]) for i_sp in range(len(action.destinations))])
+            action_value[i_action] = sum([action.probabilities[i_sp]*((action.destinations[i_sp] in goal_id)+(1-(action.destinations[i_sp] in goal_id))*value[action.destinations[i_sp]]) for i_sp in range(len(action.destinations))])
             if action_value[i_action] > action_max:
                 action_max = action_value[i_action]
                 policy = i_action
@@ -70,6 +71,8 @@ def evaluate(args):
 
 ''' https://artint.info/html/ArtInt_227.html '''
 def value_iterate_threaded(graph, goal_id, gamma=.99, epsilon=.01, debug=False):
+    if not isinstance(goal_id, (list, tuple)):
+        goal_id = [goal_id]
     epsilon = gamma*epsilon
     if debug:
         pr = cProfile.Profile()
@@ -82,14 +85,16 @@ def value_iterate_threaded(graph, goal_id, gamma=.99, epsilon=.01, debug=False):
     with Pool(processes=8) as pool:
         while any(to_update):
             value = deepcopy(next_value)
-            for i, v, p, t in pool.imap_unordered(evaluate, [(value, goal_id, gamma, epsilon, policy[i], to_update[i], graph.states[i]) for i in range(len(value)) if any([to_update[ad] for ad in graph.get_adjacent(i)])], chunksize=sum(to_update)):
+            for i, v, p, t in pool.imap_unordered(evaluate, [(value, goal_id, gamma, epsilon, policy[i], to_update[i], graph.states[i]) for i in range(len(value)) if any([to_update[ad] for ad in graph.get_adjacent(i)])], chunksize=int(sum(to_update))):
                 next_value[i] = v
                 policy[i] = p
                 to_update[i] = t
-            iter += 1
-            print('===========')
-            print(iter)
-            print(sum(to_update))
+
+            if debug:
+                iter += 1
+                print('===========')
+                print(iter)
+                print(sum(to_update))
 
     if debug:
         pr.disable()

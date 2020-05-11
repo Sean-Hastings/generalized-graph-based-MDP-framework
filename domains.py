@@ -6,11 +6,16 @@ from matplotlib import pyplot as plt
 
 
 class GridWorld(DSAG):
-    def __init__(self, states):
-        super().__init__(states)
+    def __init__(self, states, build_args=None):
+        super().__init__(states, build_args)
         self.size = np.sqrt(len(states))
         assert int(self.size) == self.size
         self.size = int(self.size)
+
+    def convert_state(self, goal):
+        if isinstance(goal, (list, tuple)):
+            goal = self.size*goal[0] + goal[1]
+        return goal
 
     def get_adjacent(self, i_state):
         adj = [i_state]
@@ -25,9 +30,12 @@ class GridWorld(DSAG):
 
         return adj
 
-    def show(self, goal=0, gamma=.99, debug=False):
-        goal = self.convert_goal(goal)
-        value, policy = value_iterate(self, goal, gamma=gamma, debug=debug)
+    def plan(self, goal=0, gamma=.99, debug=False):
+        goal = self.convert_state(goal)
+        return value_iterate(self, goal, gamma=gamma, debug=debug)
+
+    def show(self, goal=(0,0), gamma=.99, debug=False):
+        value, policy = self.plan(goal, gamma, debug)
 
         print('Values:')
         plt.imshow(np.array(value).reshape(self.size, self.size))
@@ -37,22 +45,34 @@ class GridWorld(DSAG):
         plt.imshow(np.array(policy).reshape(self.size, self.size))
         plt.show()
 
+        '''
         print('key: wall, up, down, left, right')
         plt.imshow(np.array([-1,0,1,2,3]).reshape(1,5))
+        '''
 
         if debug:
             print(np.array(policy).reshape(self.size, self.size))
             print(np.array(value).reshape(self.size, self.size))
 
+    @staticmethod
+    def build(*build_args):
+        return build_gridworld(*build_args)
+
 
 class Taxi(DSAG):
-    def __init__(self, states, indices):
-        super().__init__(states)
+    def __init__(self, states, indices, build_args=None):
+        super().__init__(states, build_args)
         self.indices = indices
         self.size = indices.shape[0]
 
-    def convert_goal(self, goal=(0,0), debug=False):
-        return self.indices[goal[0], goal[1], goal[0], goal[1], 0]
+    def convert_state(self, goal=(0,0), debug=False):
+        if isinstance(goal, (list, tuple)):
+            if len(goal) == 2:
+                return self.indices[goal[0], goal[1], goal[0], goal[1], 0]
+            else:
+                return self.indices[goal[0], goal[1], goal[2], goal[3], goal[4]]
+        else:
+            return goal
 
     def get_adjacent(self, i_state):
         ar = i_state // (self.size**3 * 2)
@@ -79,10 +99,15 @@ class Taxi(DSAG):
 
         return adj
 
+    def plan(self, goal=(0,0)):
+        if isinstance(goal[0], (tuple, list)):
+            goal = [self.convert_state(g) for g in goal]
+        else:
+            goal = self.convert_state(goal)
+        return value_iterate_threaded(self, goal, gamma=gamma, debug=debug)
+
     def show(self, passenger=(0,0), goal=(0,0), gamma=.99, debug=False):
-        goal = self.convert_goal(goal)
-        print(goal)
-        value, policy = value_iterate_threaded(self, goal, gamma=gamma, debug=debug)
+        value, policy = self.plan(goal, debug)
 
         rows = np.array(sum([[i]*self.size for i in range(self.size)], []))
         cols = np.concatenate([np.arange(self.size)]*self.size)
@@ -103,8 +128,11 @@ class Taxi(DSAG):
         plt.imshow(np.array(policy).reshape(self.size, self.size, self.size, self.size, 2)[rows, cols, rows, cols, 1].reshape(self.size, self.size))
         plt.show()
 
+        '''
         print('key: wall, up, down, left, right, pick, place')
         plt.imshow(np.array([-1,0,1,2,3,4,5]).reshape(1,7))
+        plt.show()
+        '''
 
         if debug:
             print(np.array(value).reshape(self.size, self.size, self.size, self.size, 2)[:, :, passenger[0], passenger[1], 0])
@@ -112,15 +140,14 @@ class Taxi(DSAG):
             print(np.array(policy).reshape(self.size, self.size, self.size, self.size, 2)[:, :, passenger[0], passenger[1], 0])
             print(np.array(policy).reshape(self.size, self.size, self.size, self.size, 2)[rows, cols, rows, cols, 1].reshape(self.size, self.size))
 
-
-# In[24]:
-
-
-
-# In[4]:
+    @staticmethod
+    def build(*build_args):
+        return build_taxi(*build_args)
 
 
-def build_gridworld(size, slip_rate=.1, walls=[], debug=False):
+
+def build_gridworld(size, slip_rate=.1, walls=[], sinks=[], debug=False):
+    sinks = [(s[0]*size+s[1] if isinstance(s, (list, tuple)) else s) for s in sinks]
     states = [None]*size**2
     for i in range(size):
         for j in range(size):
@@ -129,7 +156,7 @@ def build_gridworld(size, slip_rate=.1, walls=[], debug=False):
             down  = i+1
             left  = j-1
             right = j+1
-            if (i, j) in walls:
+            if (i, j) in walls or id_ in sinks:
                 states[id_] = State(id_, [Action([size*i+j]*4, [1/4]*4)]*4)
             else:
                 if i == 0 or (i-1, j) in walls:
@@ -152,10 +179,10 @@ def build_gridworld(size, slip_rate=.1, walls=[], debug=False):
                 if debug:
                     print(i, j, [(dest//size, dest%size) for dest in actions[0].destinations])
 
-    return GridWorld(states)
+    return GridWorld(states, {'size':size, 'slip_rate':slip_rate, 'walls':walls, 'sinks':sinks})
 
 
-def build_four_rooms(size, slip_rate=.1, walls=[], debug=False):
+def build_four_rooms(size, slip_rate=.1, walls=[], sinks=[], debug=False):
     pos = size//2
     n_walls = [(pos, i) for i in range(size)] + [(i, pos) for i in range(size)]
     n_walls = n_walls[:-pos*3//2] + n_walls[-pos*3//2+1:]
@@ -167,11 +194,17 @@ def build_four_rooms(size, slip_rate=.1, walls=[], debug=False):
     if debug:
         print(walls)
 
-    return build_gridworld(size, slip_rate, walls, debug)
+    return build_gridworld(size, slip_rate, walls, sinks, debug)
 
 
-def build_taxi(size, slip_rate=.1, walls=[], debug=False):
+def build_taxi(size, slip_rate=.1, walls=[], sinks=[], debug=False):
     indices = np.arange(size**4*2).reshape(size, size, size, size, 2)
+    wells = [s for s in sinks if isinstance(s, (list, tuple)) and len(s) == 2]
+    for well in wells:
+        sinks += list(indices[well[0],well[1], :, :, :].flatten())
+        sinks += list(indices[:, :, well[0],well[1], :].flatten())
+    sinks = [s for s in sinks if not (isinstance(s, (list, tuple)) and len(s) == 2)]
+    sinks = [(indices[s[0],s[1],s[2],s[3],s[4]] if isinstance(s, (list, tuple)) else s) for s in sinks]
     states = [None] * indices.size
     for ar in range(size):
         for ac in range(size):
@@ -180,7 +213,7 @@ def build_taxi(size, slip_rate=.1, walls=[], debug=False):
                     for h in range(2):
                         id_ = indices[ar, ac, pr, pc, h]
                         invalid = (not (pr==ar and pc==ac)) and h
-                        if (ar, ac) in walls or (pr, pc) in walls or invalid:
+                        if (ar, ac) in walls or (pr, pc) in walls or id_ in sinks or invalid:
                             states[id_] = State(id_, [Action([id_]*6, [1/6]*6)]*6)
                         else:
                             pick  = 1 if all([pr==ar, pc==ac]) else 0
@@ -223,4 +256,4 @@ def build_taxi(size, slip_rate=.1, walls=[], debug=False):
                             actions = [Action(dests, [probs[1]]*i + [probs[0]] + [probs[1]]*(5-i)) for i in range(6)]
                             states[id_] = State(id_, actions)
 
-    return Taxi(states, indices)
+    return Taxi(states, indices, {'size':size, 'slip_rate':slip_rate, 'walls':walls, 'sinks':sinks})

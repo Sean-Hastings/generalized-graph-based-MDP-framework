@@ -1,4 +1,5 @@
 from math import isclose
+from copy import deepcopy
 
 
 class State():
@@ -16,9 +17,9 @@ class State():
 class Action():
     def __init__(self, destinations, probabilities):
         assert len(destinations) == len(probabilities)
-        assert isclose(sum(probabilities), 1)
+        prob_sum = sum(probabilities)
         self.destinations = destinations
-        self.probabilities = probabilities
+        self.probabilities = [prob / prob_sum for prob in probabilities]
 
     def __eq__(self, other):
         return self.destinations == other.destinations and self.probabilities == other.probabilities
@@ -39,25 +40,33 @@ class Action():
 
 ''' Directed State Action Graph (MDP without rewards) '''
 class DSAG():
-    def __init__(self, states):
+    def __init__(self, states, build_args=None):
         assert isinstance(states, list)
         assert all([len(state.actions) == len(states[0].actions) for state in states])
         self.states = states
+        self.build_args = build_args
 
-    def convert_goal(self, goal):
-        if isinstance(goal, (list, tuple)):
-            goal = self.size*goal[0] + goal[1]
+    def convert_state(self, goal):
         return goal
 
     def get_adjacent(self, i_state):
         return [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
 
     def show(self, goal=0, debug=False):
-        goal = self.convert_goal(goal)
-        #value, policy = value_iterate(self, goal, debug=debug)
+        goal = self.convert_state(goal)
 
         for i_state, state in enumerate(self.states):
-            print(state)#, value[i_state], policy[i_state])
+            print(state)
+
+    def rebuild(self, newstates):
+        newstates = [self.convert_state(s) for s in newstates]
+        build_args = deepcopy(self.build_args)
+        build_args['sinks'] += [state.id for state in self.states if state.id not in newstates]
+        return self.build(*build_args.values())
+
+    @staticmethod
+    def build(*build_args):
+        return DSAG([], build_args)
 
 if __name__ == '__main__':
     a = State(0, [Action([0],[1])])
