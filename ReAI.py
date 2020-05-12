@@ -3,6 +3,11 @@ from value_iteration import *
 from domains import *
 from abstraction import *
 from time import perf_counter
+from copy import deepcopy
+from matplotlib import pyplot as plt
+import numpy as np
+
+
 
 if __name__ == '__main__':
     #a = build_gridworld(25, slip_rate=.1, walls=[(i,i) for i in range(15)])
@@ -26,13 +31,13 @@ if __name__ == '__main__':
     #f.plan(goal=(9,9,9,9,1))
     #print('abstract planned')
 
-    a = build_gridworld(25, slip_rate=.1, walls=[(i,i) for i in range(15)])
-    a.show(21*19, debug=False) # COmment this to stop it showing the pyplot stuff
+    a = build_four_rooms(25, slip_rate=.1)
+    #a.show(21*19, debug=False) # Comment this to stop it showing the pyplot stuff
 
-    partitions = [[(i, j) for i in range(15) for j in range(i+1)],
-                  [(j, i) for i in range(1, 15) for j in range(i)],
-                  [(i, j) for j in range(25) for i in range(15, 25)],
-                  [(i, j) for j in range(15, 25) for i in range(15)]]
+    partitions = [[(i, j) for i in range(12) for j in range(12)],
+                  [(j, i) for i in range(12) for j in range(12, 25)],
+                  [(i, j) for j in range(12, 25) for i in range(12)],
+                  [(i, j) for j in range(12, 25) for i in range(12, 25)]]
     #b = Abstraction(a, partitions)
     #b.show(goal=(10,5))
 
@@ -43,16 +48,24 @@ if __name__ == '__main__':
 
     start_time = perf_counter()
     for goal in goals:
-        a.plan(goal)
+        value, policy = a.plan(goal)
     end_time = perf_counter()
     delta_time = end_time - start_time
     print('The un-abstracted version took %.2f seconds to plan over the given goals' % delta_time)
+    plt.imshow(np.array(value).reshape(25, 25))
+    plt.show()
+    plt.imshow(np.array(policy).reshape(25, 25))
+    plt.show()
 
     start_time = perf_counter()
     b = Abstraction(a, partitions)
     print('Finished building abstraction')
     for goal in goals:
-        b.plan(goal)
+        value, policy = b.plan(goal)
     end_time = perf_counter()
     delta_time = end_time - start_time
     print('The abstracted version took %.2f seconds to plan over the given goals' % delta_time)
+    plt.imshow(np.array(value).reshape(25, 25))
+    plt.show()
+    plt.imshow(np.array(policy).reshape(25, 25))
+    plt.show()

@@ -31,7 +31,13 @@ class GridWorld(DSAG):
         return adj
 
     def plan(self, goal=0, gamma=.99, debug=False):
-        goal = self.convert_state(goal)
+        if isinstance(goal, (tuple, list)):
+            if isinstance(goal[0], (tuple, list)):
+                goal = [self.convert_state(g) for g in goal]
+            else:
+                goal = [self.convert_state(goal)]
+        else:
+            goal = [goal]
         return value_iterate(self, goal, gamma=gamma, debug=debug)
 
     def show(self, goal=(0,0), gamma=.99, debug=False):
@@ -100,10 +106,13 @@ class Taxi(DSAG):
         return adj
 
     def plan(self, goal=(0,0)):
-        if isinstance(goal[0], (tuple, list)):
-            goal = [self.convert_state(g) for g in goal]
+        if isinstance(goal, (tuple, list)):
+            if isinstance(goal[0], (tuple, list)):
+                goal = [self.convert_state(g) for g in goal]
+            else:
+                goal = [self.convert_state(goal)]
         else:
-            goal = self.convert_state(goal)
+            goal = [goal]
         return value_iterate_threaded(self, goal, gamma=gamma, debug=debug)
 
     def show(self, passenger=(0,0), goal=(0,0), gamma=.99, debug=False):
