@@ -1,5 +1,6 @@
 from math import isclose
 from copy import deepcopy
+import numpy as np
 
 
 class State():
@@ -67,6 +68,77 @@ class DSAG():
     @staticmethod
     def build(*build_args):
         return DSAG([], build_args)
+
+    def get_num_edges(self,cluster_1, cluster_2):
+        num_edges = 0
+        for a in cluster_1:
+            num_edges += cluster_2.intersection(set(self.get_adjacent(a))).__len__()
+        for a in cluster_2:
+            num_edges += cluster_1.intersection(set(self.get_adjacent(a))).__len__()
+        return num_edges
+
+    def get_partitions(self,k):
+        init_cluster_ct = len(self.states)
+        saved_vals = dict()
+        clusters = [{state} for state in self.states]
+        while init_cluster_ct > k:
+            print("cluster count",len(clusters))
+            best_val = -float("inf")
+            best_copy = None
+            for cluster_1 in clusters:
+                for cluster_2 in clusters:
+                    if cluster_1 != cluster_2:
+                        if str((cluster_2, cluster_1)) in saved_vals:
+                            saved_vals[str((cluster_1, cluster_2))] = saved_vals[str((cluster_2, cluster_1))]
+                        else:
+                            num_edges = self.get_num_edges(cluster_1, cluster_2)
+                            val = self.value_function(cluster_1.__len__(), cluster_2.__len__(), num_edges)
+                            saved_vals[str((cluster_1, cluster_2))] = val
+
+            for combine1 in clusters:
+                for combine2 in clusters:
+                    if combine1 != combine2:
+                        clusters_copy = clusters.copy()
+                        clusters_copy.remove(combine1)
+                        clusters_copy.remove(combine2)
+                        clusters_copy.append(combine1.union(combine2))
+                        utility = self.get_utility(clusters_copy,saved_vals)
+                        if utility > best_val:
+                            best_val = utility
+                            best_copy = clusters_copy
+
+            clusters = best_copy
+            init_cluster_ct = len(clusters)
+
+        return clusters
+
+    def get_utility(self,clusters,saved_vals):
+        utility = 0
+        for cluster_1 in clusters:
+            for cluster_2 in clusters:
+                if cluster_1 != cluster_2:
+                    if str((cluster_2, cluster_1)) in saved_vals:
+                        saved_vals[str((cluster_1, cluster_2))] = saved_vals[str((cluster_2, cluster_1))]
+                    elif str((cluster_1, cluster_2)) not in saved_vals:
+                        num_edges = self.get_num_edges(cluster_1, cluster_2)
+                        val = self.value_function(cluster_1.__len__(), cluster_2.__len__(), num_edges)
+                        saved_vals[str((cluster_1, cluster_2))] = val
+                    utility += saved_vals[str((cluster_1, cluster_2))]
+        return utility
+
+
+    def value_function(self,size1,size2,num_edges):
+        # if num_edges > 0:
+        #     print("value function")
+        #     print(size1,size2,num_edges)
+        if num_edges == 0:
+            return 0
+        return min(size1,size2)*np.log(max(size1,size2))/num_edges
+
+
+
+
+
 
 if __name__ == '__main__':
     a = State(0, [Action([0],[1])])

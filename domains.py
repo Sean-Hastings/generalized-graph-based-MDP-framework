@@ -17,6 +17,16 @@ class GridWorld(DSAG):
             goal = self.size*goal[0] + goal[1]
         return goal
 
+    def get_num_edges(self,cluster_1, cluster_2):
+        num_edges = 0
+        map_1 = set([a.id for a in cluster_1])
+        map_2 = set([a.id for a in cluster_2])
+        for a in cluster_1:
+            num_edges += map_2.intersection(set(self.get_adjacent(a.id))).__len__()
+        for a in cluster_2:
+            num_edges += map_1.intersection(set(self.get_adjacent(a.id))).__len__()
+        return num_edges
+
     def get_adjacent(self, i_state):
         adj = [i_state]
 
