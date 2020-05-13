@@ -28,17 +28,22 @@ class GridWorld(DSAG):
         return num_edges
 
     def get_adjacent(self, i_state):
-        adj = [i_state]
+        if not i_state in self.adj_memos:
+                    adj = [i_state]
 
-        r = i_state // self.size
-        c = i_state % self.size
+                    r = i_state // self.size
+                    c = i_state % self.size
 
-        adj += [max(r-1, 0)*self.size + c]
-        adj += [min(r+1, self.size-1)*self.size + c]
-        adj += [max(c-1, 0) + r*self.size]
-        adj += [min(c+1, self.size-1) + r*self.size]
+                    adj += [max(r-1, 0)*self.size + c]
+                    adj += [min(r+1, self.size-1)*self.size + c]
+                    adj += [max(c-1, 0) + r*self.size]
+                    adj += [min(c+1, self.size-1) + r*self.size]
 
-        return adj
+                    self.adj_memos[i_state] = adj
+        return self.adj_memos[i_state]
+
+
+
 
     def plan(self, goal=0, gamma=.99, debug=False):
         if isinstance(goal, (tuple, list)):

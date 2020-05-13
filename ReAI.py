@@ -31,7 +31,7 @@ if __name__ == '__main__':
     #f.plan(goal=(9,9,9,9,1))
     #print('abstract planned')
 
-    a = build_four_rooms(4, slip_rate=.1)
+    a = build_four_rooms(20, slip_rate=.1)
     #a.show(21*19, debug=False) # Comment this to stop it showing the pyplot stuff
 
     """
@@ -40,20 +40,19 @@ if __name__ == '__main__':
                   [(i, j) for j in range(12, 25) for i in range(12)],
                   [(i, j) for j in range(12, 25) for i in range(12, 25)]]
     """
-    num_states = 4
-    num_abstract = 4
+    num_states = 20
+    num_abstract = 20
     partitions = a.get_partitions(num_abstract)
 
     #b = Abstraction(a, partitions)
     #b.show(goal=(10,5))
     partitions = [[x.id for x in p] for p in partitions]
 
-    # goals = [(1,0), (0,1)]
+    goals = [(1,0), (0,1)]
     # goals += [(i, i-5) for i in range(5, 25)]
     # goals += [(i-5, i) for i in range(5, 25)]
     # goals += [(24-i, 20+i) for i in range(5)]
 
-    goals = [(3,3)]
 
     start_time = perf_counter()
     for goal in goals:
