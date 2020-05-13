@@ -53,9 +53,9 @@ class DSAG():
         return goal
 
     def get_adjacent(self, i_state):
-        if not i_state.id in self.adj_memos:
-            self.adj_memos[i_state.id] = [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
-        return self.adj_memos[i_state.id]
+        if not i_state in self.adj_memos:
+            self.adj_memos[i_state] = [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
+        return self.adj_memos[i_state]
 
     def show(self, goal=0, debug=False):
         goal = self.convert_state(goal)
