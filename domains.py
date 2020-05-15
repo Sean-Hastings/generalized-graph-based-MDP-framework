@@ -237,8 +237,8 @@ def build_gridworld(size, slip_rate=.1, walls=[], sinks=[], debug=False):
 def build_four_rooms(size, slip_rate=.1, walls=[], sinks=[], debug=False):
     pos = size//2
     n_walls = [(pos, i) for i in range(size)] + [(i, pos) for i in range(size)]
-    n_walls = n_walls[:-pos*3//2] + n_walls[-pos*3//2+1:]
-    n_walls = n_walls[:-pos//2] + n_walls[-pos//2+1:]
+    n_walls = n_walls[:-pos*3//2 - 1] + n_walls[-pos*3//2:]
+    n_walls = n_walls[:-pos//2 - 1] + n_walls[-pos//2:]
     n_walls = n_walls[:pos*3//2] + n_walls[pos*3//2+1:]
     n_walls = n_walls[:pos//2] + n_walls[pos//2+1:]
     walls += n_walls
