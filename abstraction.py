@@ -29,6 +29,7 @@ class Abstraction():
         assert all([(0 <= state) and (state < len(graph.states)) for state in flat_partitions])
         assert all([state.id in flat_partitions for state in graph.states])
 
+        # partition is a list of lists of integers representing positions of each abstract state's primitive
         self.abstract_states = [build_abstract_state(graph, partition) for partition in self.partitions]
         self.options = [[build_option_a_s(a_s, goal, debug=debug) for goal in self.partitions] for a_s in self.abstract_states]
 

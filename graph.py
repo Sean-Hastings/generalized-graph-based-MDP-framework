@@ -1,7 +1,8 @@
 from math import isclose
 from copy import deepcopy
+import itertools
 import numpy as np
-
+import time
 
 class State():
     def __init__(self, id_, actions):
@@ -13,7 +14,6 @@ class State():
 
     def __str__(self):
         return 'State(%d, %s)' % (self.id, self.actions)
-
 
 class Action():
     def __init__(self, destinations, probabilities):
@@ -46,12 +46,18 @@ class DSAG():
         assert all([len(state.actions) == len(states[0].actions) for state in states])
         self.states = states
         self.build_args = build_args
+        self.adj_memos = {}
+
+    def get_walls(self):
+        pass
 
     def convert_state(self, goal):
         return goal
 
     def get_adjacent(self, i_state):
-        return [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
+        if not i_state.id in self.adj_memos:
+            self.adj_memos[i_state.id] = [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
+        return self.adj_memos[i_state.id]
 
     def show(self, goal=0, debug=False):
         goal = self.convert_state(goal)
@@ -79,66 +85,110 @@ class DSAG():
 
     def get_partitions(self,k):
         init_cluster_ct = len(self.states)
-        saved_vals = dict()
-        clusters = [{state} for state in self.states]
+        saved_edges = dict()
+        walls = self.get_walls()
+
+        filter_walls = [state.id for state in self.states if not state.id in walls]
+        state_sets = dict()
+        for state in filter_walls:
+            state_sets[state] = frozenset({state})
+
+        clusters = set()
+        neighbor_mapping = dict()
+        for state_id in state_sets:
+            cluster = state_sets[state_id]
+            clusters.add(cluster)
+            neighbors = {state_sets[neighbor] for neighbor in self.get_adjacent_mod(state_id)}
+            neighbor_mapping[cluster] = neighbors
+            
         while init_cluster_ct > k:
-            print("cluster count",len(clusters))
+            print("cluster count", len(clusters))
             best_val = -float("inf")
             best_copy = None
-            for cluster_1 in clusters:
-                for cluster_2 in clusters:
-                    if cluster_1 != cluster_2:
-                        if str((cluster_2, cluster_1)) in saved_vals:
-                            saved_vals[str((cluster_1, cluster_2))] = saved_vals[str((cluster_2, cluster_1))]
-                        else:
-                            num_edges = self.get_num_edges(cluster_1, cluster_2)
-                            val = self.value_function(cluster_1.__len__(), cluster_2.__len__(), num_edges)
-                            saved_vals[str((cluster_1, cluster_2))] = val
 
-            for combine1 in clusters:
-                for combine2 in clusters:
-                    if combine1 != combine2:
-                        clusters_copy = clusters.copy()
-                        clusters_copy.remove(combine1)
-                        clusters_copy.remove(combine2)
-                        clusters_copy.append(combine1.union(combine2))
-                        utility = self.get_utility(clusters_copy,saved_vals)
-                        if utility > best_val:
-                            best_val = utility
-                            best_copy = clusters_copy
+            best_pair = {None, None}
 
-            clusters = best_copy
+            pairs = itertools.combinations(clusters, 2)
+            for cluster_1, cluster_2 in pairs:
+                if cluster_2 in neighbor_mapping[cluster_1]:
+                    num_edges = self.get_num_edges_mod(cluster_1, cluster_2)
+                    saved_edges[(cluster_1, cluster_2)] = num_edges
+                    saved_edges[(cluster_2, cluster_1)] = num_edges
+                else:
+                    saved_edges[(cluster_1, cluster_2)] = 0
+                    saved_edges[(cluster_2, cluster_1)] = 0
+
+
+            pairs = itertools.combinations(clusters, 2)
+
+            print("second loop")
+            for combine1, combine2 in pairs:
+                if combine2 in neighbor_mapping[combine1]:
+                    u = self.dutil(clusters, combine1, combine2, saved_edges)
+                    if u > best_val:
+                        best_val = u
+                        best_pair = {combine1, combine2}
+            c1, c2 = best_pair
+
+            clusters.remove(c1)
+            clusters.remove(c2)
+            new_cluster = c1.union(c2)
+            clusters.add(new_cluster)
+
+            neighbors_1 = neighbor_mapping[c1]
+            neighbors_2 = neighbor_mapping[c2]
+            new_neighbors = neighbors_1.union(neighbors_2)
+            neighbor_mapping[new_cluster] = new_neighbors
+            neighbor_mapping.pop(c1, None)
+            neighbor_mapping.pop(c2, None)
+            for c in clusters:
+                if c1 in neighbor_mapping[c]:
+                    neighbor_mapping[c].add(new_cluster)
+                    neighbor_mapping[c].remove(c1)
+                if c2 in neighbor_mapping[c]:
+                    neighbor_mapping[c].add(new_cluster)
+                    neighbor_mapping[c].remove(c2)
+
+            for c in clusters:
+                if c != new_cluster:
+                    num_edges = saved_edges[(c1, c)] + saved_edges[(c2, c)]
+                    saved_edges[(new_cluster, c)] = num_edges
+                    saved_edges[(c, new_cluster)] = num_edges
+
+
+            # clusters = best_copy
             init_cluster_ct = len(clusters)
 
         return clusters
 
-    def get_utility(self,clusters,saved_vals):
-        utility = 0
-        for cluster_1 in clusters:
-            for cluster_2 in clusters:
-                if cluster_1 != cluster_2:
-                    if str((cluster_2, cluster_1)) in saved_vals:
-                        saved_vals[str((cluster_1, cluster_2))] = saved_vals[str((cluster_2, cluster_1))]
-                    elif str((cluster_1, cluster_2)) not in saved_vals:
-                        num_edges = self.get_num_edges(cluster_1, cluster_2)
-                        val = self.value_function(cluster_1.__len__(), cluster_2.__len__(), num_edges)
-                        saved_vals[str((cluster_1, cluster_2))] = val
-                    utility += saved_vals[str((cluster_1, cluster_2))]
-        return utility
+    def get_val(self, cluster_1, cluster_2, saved_edges):
+         num_edges = self.get_num_edges(cluster_1, cluster_2)
+         return self.value_function(cluster_1.__len__(), cluster_2.__len__(), num_edges)
 
+
+    def dutil(self, clusters, cluster1, cluster2, saved_edges):
+        u0 = 0
+        for c in clusters:
+            if c != cluster1:
+                u0 += self.value_function(len(cluster1), len(c), saved_edges[(cluster1, c)])
+        for c in clusters:
+            if c != cluster2 and c != cluster1:
+                u0 +=  self.value_function(len(cluster2), len(c), saved_edges[(cluster2, c)])
+
+        new_cluster = cluster1.union(cluster2)
+
+        u=0
+        for c in clusters:
+            if c != cluster1 and c != cluster2:
+                u  +=  self.value_function(len(new_cluster), len(c),
+                                           saved_edges[(cluster2, c)] + saved_edges[(cluster1, c)])
+
+        return u - u0
 
     def value_function(self,size1,size2,num_edges):
-        # if num_edges > 0:
-        #     print("value function")
-        #     print(size1,size2,num_edges)
         if num_edges == 0:
             return 0
         return min(size1,size2)*np.log(max(size1,size2))/num_edges
-
-
-
-
-
 
 if __name__ == '__main__':
     a = State(0, [Action([0],[1])])

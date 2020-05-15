@@ -12,6 +12,12 @@ class GridWorld(DSAG):
         assert int(self.size) == self.size
         self.size = int(self.size)
 
+    def get_walls(self):
+        walls = set()
+        for wall_loc in self.build_args["walls"]:
+            walls.add(self.convert_state(wall_loc))
+        return walls
+
     def convert_state(self, goal):
         if isinstance(goal, (list, tuple)):
             goal = self.size*goal[0] + goal[1]
@@ -40,6 +46,33 @@ class GridWorld(DSAG):
 
         return adj
 
+    def get_num_edges_mod(self,cluster_1, cluster_2):
+        num_edges = 0
+        map_1 = set([a for a in cluster_1])
+        map_2 = set([a for a in cluster_2])
+        for a in cluster_1:
+            num_edges += map_2.intersection(set(self.get_adjacent_mod(a))).__len__()
+        for a in cluster_2:
+            num_edges += map_1.intersection(set(self.get_adjacent_mod(a))).__len__()
+        return num_edges
+
+    def get_adjacent_mod(self, i_state):
+        adj = []
+
+        r = i_state // self.size
+        c = i_state % self.size
+
+
+        if r-1 >= 0 and not (r-1, c) in self.build_args['walls']:  
+            adj += [max(r-1, 0)*self.size + c]
+        if r+1 <= self.size-1 and not (r+1, c) in self.build_args['walls']:
+            adj += [min(r+1, self.size-1)*self.size + c]
+        if c-1 >= 0 and not (r, c-1) in self.build_args['walls']:
+            adj += [max(c-1, 0) + r*self.size]
+        if c+1 <= self.size-1 and not (r, c+1) in self.build_args['walls']:
+            adj += [min(c+1, self.size-1) + r*self.size]
+        return adj
+        
     def plan(self, goal=0, gamma=.99, debug=False):
         if isinstance(goal, (tuple, list)):
             if isinstance(goal[0], (tuple, list)):

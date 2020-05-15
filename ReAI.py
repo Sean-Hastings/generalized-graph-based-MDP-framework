@@ -31,29 +31,44 @@ if __name__ == '__main__':
     #f.plan(goal=(9,9,9,9,1))
     #print('abstract planned')
 
-    a = build_four_rooms(4, slip_rate=.1)
+    num_states = 10
+    a = build_four_rooms(num_states, slip_rate=.1)
     #a.show(21*19, debug=False) # Comment this to stop it showing the pyplot stuff
 
-    """
-    partitions = [[(i, j) for i in range(12) for j in range(12)],
-                  [(j, i) for i in range(12) for j in range(12, 25)],
-                  [(i, j) for j in range(12, 25) for i in range(12)],
-                  [(i, j) for j in range(12, 25) for i in range(12, 25)]]
-    """
-    num_states = 4
+    # partitions = [[(i, j) for i in range(12) for j in range(12)],
+    #               [(j, i) for i in range(12) for j in range(12, 25)],
+    #               [(i, j) for j in range(12, 25) for i in range(12)],
+    #               [(i, j) for j in range(12, 25) for i in range(12, 25)]]
+    # num_states = 20
+    # num_abstract = 20
     num_abstract = 4
     partitions = a.get_partitions(num_abstract)
 
     #b = Abstraction(a, partitions)
     #b.show(goal=(10,5))
-    partitions = [[x.id for x in p] for p in partitions]
+    partitions = [[x for x in p] for p in partitions]
 
-    # goals = [(1,0), (0,1)]
+    goals = [(1,0), (0,1)]
     # goals += [(i, i-5) for i in range(5, 25)]
     # goals += [(i-5, i) for i in range(5, 25)]
     # goals += [(24-i, 20+i) for i in range(5)]
 
-    goals = [(3,3)]
+    cluster_arr = np.zeros((num_states, num_states))
+
+    i = 1
+    for part in partitions:
+        for square in part:
+            cluster_arr[square // num_states, square % num_states] = i
+        i += 1
+
+    plt.imshow(cluster_arr)
+    plt.show()
+
+    # This line of code adds back wall states to one of the partitions because the rest of the code
+    # expects wall states to be included in the partitions. 
+    for wall in a.get_walls():
+        partitions[0].append(wall)
+
 
     start_time = perf_counter()
     for goal in goals:
