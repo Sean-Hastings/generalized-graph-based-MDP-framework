@@ -6,7 +6,7 @@ from time import perf_counter
 from copy import deepcopy
 from matplotlib import pyplot as plt
 import numpy as np
-
+import sys
 
 
 if __name__ == '__main__':
@@ -31,7 +31,8 @@ if __name__ == '__main__':
     #f.plan(goal=(9,9,9,9,1))
     #print('abstract planned')
 
-    num_states = 25
+
+    num_states = int(sys.argv[1])
     a = build_four_rooms(num_states, slip_rate=.1)
     #a.show(21*19, debug=False) # Comment this to stop it showing the pyplot stuff
 
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     #               [(i, j) for j in range(12, 25) for i in range(12, 25)]]
     # num_states = 20
     # num_abstract = 20
-    num_abstract = 4
+    num_abstract = int(sys.argv[2])
     partitions = a.get_partitions(num_abstract)
 
     #b = Abstraction(a, partitions)
