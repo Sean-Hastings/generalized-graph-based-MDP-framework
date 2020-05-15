@@ -1,0 +1,7 @@
+The un-abstracted version took 0.129 seconds per goal to plan over the given goals
+The abstraction took 2.045 seconds to build (not including clustering)
+Finished building abstraction
+The abstracted version took 0.043 seconds per goal to plan over the given goals
+Mean value loss across goals: 0.048
+Mean un-abstracted value across goals: 0.742
+Mean abstracted value across goals: 0.694
