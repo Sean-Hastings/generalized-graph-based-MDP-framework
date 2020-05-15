@@ -31,7 +31,7 @@ if __name__ == '__main__':
     #f.plan(goal=(9,9,9,9,1))
     #print('abstract planned')
 
-    num_states = 15
+    num_states = 25
     a = build_four_rooms(num_states, slip_rate=.1)
     #a.show(21*19, debug=False) # Comment this to stop it showing the pyplot stuff
 
@@ -49,20 +49,20 @@ if __name__ == '__main__':
     partitions = [[x for x in p] for p in partitions]
 
     goals = [(1,0), (0,1)]
-    # goals += [(i, i-5) for i in range(5, 25)]
-    # goals += [(i-5, i) for i in range(5, 25)]
-    # goals += [(24-i, 20+i) for i in range(5)]
+    goals += [(i, i-5) for i in range(5, num_states)]
+    goals += [(i-5, i) for i in range(5, num_states)]
+    goals += [(num_states-1-i, num_states-5+i) for i in range(5)]
 
-    cluster_arr = np.zeros((num_states, num_states))
+    cluster_arr = np.zeros((num_states, num_states), dtype=np.float64)
 
-    i = 1
+    i = 1.0
     for part in partitions:
         for square in part:
-            cluster_arr[square // num_states, square % num_states] = i
-        i += 1
+            cluster_arr[square // num_states, square % num_states] = i+0.0
+        i += 1.0
 
-    plt.imshow(cluster_arr)
-    plt.show()
+    #plt.imshow(cluster_arr)
+    #plt.show()
 
     # This line of code adds back wall states to one of the partitions because the rest of the code
     # expects wall states to be included in the partitions.
@@ -71,8 +71,9 @@ if __name__ == '__main__':
 
 
     start_time = perf_counter()
+    un_vps = []
     for goal in goals:
-        value, policy = a.plan(goal)
+        un_vps += [a.plan(goal)]
     end_time = perf_counter()
     delta_time = end_time - start_time
     print('The un-abstracted version took %.2f seconds to plan over the given goals' % delta_time)
@@ -81,23 +82,23 @@ if __name__ == '__main__':
     # plt.imshow(np.array(policy).reshape(25, 25))
     # plt.show()
 
-    plt.imshow(np.array(value).reshape(num_states, num_states))
-    plt.show()
-    plt.imshow(np.array(policy).reshape(num_states, num_states))
-    plt.show()
+    #plt.imshow(np.array(un_vps[0][0]).reshape(num_states, num_states))
+    #plt.show()
+    #plt.imshow(np.array(un_vps[0][1]).reshape(num_states, num_states))
+    #plt.show()
 
     start_time = perf_counter()
     b = Abstraction(a, partitions)
     print('Finished building abstraction')
-    vps = []
+    a_vps = []
     for goal in goals:
-        vps += [b.plan(goal)]
+        a_vps += [b.plan(goal)]
     end_time = perf_counter()
     delta_time = end_time - start_time
     print('The abstracted version took %.2f seconds to plan over the given goals' % delta_time)
 
-    for i, vp in enumerate(vps):
-        value, policy = vp
+    for i, a_vp in enumerate(a_vps):
+        value, policy = a_vp
         for j in range(num_states**2):
             for r in range(num_states):
                 for c in range(num_states):
@@ -106,10 +107,38 @@ if __name__ == '__main__':
                         state = a.states[id_]
                         value[id_] = sum([value[state.actions[policy[id_]].destinations[l]] * state.actions[policy[id_]].probabilities[l] for l in range(4)]) * .99
 
-    plt.imshow(np.array(vps[0][0]).reshape(num_states, num_states))
-    plt.show()
-    plt.imshow(np.array(vps[0][1]).reshape(num_states, num_states))
-    plt.show()
+    #plt.imshow(np.array(a_vps[0][0]).reshape(num_states, num_states))
+    #plt.show()
+    #plt.imshow(np.array(a_vps[0][1]).reshape(num_states, num_states))
+    #plt.show()
+
+    vl = []
+    for i, ua_vp in enumerate(zip(un_vps, a_vps)):
+        u_vp, a_vp = ua_vp
+        if np.mean(np.array(u_vp[0]).reshape(num_states, num_states)) > 0:
+            vl += [np.mean(np.array(u_vp[0]).reshape(num_states, num_states) - np.array(a_vp[0]).reshape(num_states, num_states))]
+            print('Mean value loss for goal "%s": %.3f' % (str(goals[i]), vl[-1]))
+            f = plt.figure(0)
+            plt.subplot(2, 3, 1)
+            plt.imshow(np.array(u_vp[0]).reshape(num_states, num_states))
+            plt.colorbar()
+            plt.subplot(2, 3, 2)
+            plt.imshow(np.array(u_vp[1], dtype=np.float64).reshape(num_states, num_states))
+            plt.subplot(2, 3, 3)
+            plt.imshow(cluster_arr)
+            plt.subplot(2, 3, 4)
+            plt.imshow(np.array(a_vp[0]).reshape(num_states, num_states))
+            plt.colorbar()
+            plt.subplot(2, 3, 5)
+            plt.imshow(np.array(a_vp[1], dtype=np.float64).reshape(num_states, num_states))
+            plt.subplot(2, 3, 6)
+            plt.imshow(np.array(u_vp[0]).reshape(num_states, num_states) - np.array(a_vp[0]).reshape(num_states, num_states))
+            plt.colorbar()
+            f.tight_layout()
+            plt.savefig(str(i)+'.png')
+            plt.clf()
+
+    print('Mean value loss across goals: %.3f' % np.mean(np.array(vl)))
     # plt.imshow(np.array(value).reshape(25, 25))
     # plt.show()
     # plt.imshow(np.array(policy).reshape(25, 25))
