@@ -49,10 +49,7 @@ if __name__ == '__main__':
     #b.show(goal=(10,5))
     partitions = [[x for x in p] for p in partitions]
 
-    goals = [(1,0), (0,1)]
-    goals += [(i, i-5) for i in range(5, num_states)]
-    goals += [(i-5, i) for i in range(5, num_states)]
-    goals += [(num_states-1-i, num_states-5+i) for i in range(5)]
+    goals = [(r, c) for r in range(num_states) for c in range(num_states)]
 
     cluster_arr = np.zeros((num_states, num_states), dtype=np.float64)
 
@@ -77,7 +74,7 @@ if __name__ == '__main__':
         un_vps += [a.plan(goal)]
     end_time = perf_counter()
     delta_time = end_time - start_time
-    print('The un-abstracted version took %.2f seconds to plan over the given goals' % delta_time)
+    print('The un-abstracted version took %.3f seconds per goal to plan over the given goals' % (delta_time / num_states**2))
     # plt.imshow(np.array(value).reshape(25, 25))
     # plt.show()
     # plt.imshow(np.array(policy).reshape(25, 25))
@@ -90,13 +87,17 @@ if __name__ == '__main__':
 
     start_time = perf_counter()
     b = Abstraction(a, partitions)
+    end_time = perf_counter()
+    delta_time = end_time - start_time
+    print('The abstraction took %.3f seconds to build (not including clustering)' % delta_time)
+    start_time = perf_counter()
     print('Finished building abstraction')
     a_vps = []
     for goal in goals:
         a_vps += [b.plan(goal)]
     end_time = perf_counter()
     delta_time = end_time - start_time
-    print('The abstracted version took %.2f seconds to plan over the given goals' % delta_time)
+    print('The abstracted version took %.3f seconds per goal to plan over the given goals' % (delta_time / num_states**2))
 
     for i, a_vp in enumerate(a_vps):
         value, policy = a_vp
@@ -114,11 +115,15 @@ if __name__ == '__main__':
     #plt.show()
 
     vl = []
+    vl1 = []
+    vl2 = []
     for i, ua_vp in enumerate(zip(un_vps, a_vps)):
         u_vp, a_vp = ua_vp
         if np.mean(np.array(u_vp[0]).reshape(num_states, num_states)) > 0:
+            vl1 += [np.mean(np.array(u_vp[0]).reshape(num_states, num_states))]
+            vl2 += [np.mean(np.array(a_vp[0]).reshape(num_states, num_states))]
             vl += [np.mean(np.array(u_vp[0]).reshape(num_states, num_states) - np.array(a_vp[0]).reshape(num_states, num_states))]
-            print('Mean value loss for goal "%s": %.3f' % (str(goals[i]), vl[-1]))
+            #print('Mean value loss for goal "%s": %.3f' % (str(goals[i]), vl[-1]))
             f = plt.figure(0)
             plt.subplot(2, 3, 1)
             plt.imshow(np.array(u_vp[0]).reshape(num_states, num_states))
@@ -140,6 +145,8 @@ if __name__ == '__main__':
             plt.clf()
 
     print('Mean value loss across goals: %.3f' % np.mean(np.array(vl)))
+    print('Mean un-abstracted value across goals: %.3f' % np.mean(np.array(vl1)))
+    print('Mean abstracted value across goals: %.3f' % np.mean(np.array(vl2)))
     # plt.imshow(np.array(value).reshape(25, 25))
     # plt.show()
     # plt.imshow(np.array(policy).reshape(25, 25))
