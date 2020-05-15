@@ -9,11 +9,10 @@ do
     cd ..
 done
 
-
 for clusters in 10 25 50 100
 do
     echo $clusters
-    mkdir "$25_${clusters}"
+    mkdir "25_${clusters}"
     cd "25_${clusters}"
     python ../../ReAI.py 25 $clusters  > record.txt
     cd ..
