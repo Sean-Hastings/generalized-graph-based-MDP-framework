@@ -31,7 +31,7 @@ if __name__ == '__main__':
     #f.plan(goal=(9,9,9,9,1))
     #print('abstract planned')
 
-    num_states = 10
+    num_states = 15
     a = build_four_rooms(num_states, slip_rate=.1)
     #a.show(21*19, debug=False) # Comment this to stop it showing the pyplot stuff
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     plt.show()
 
     # This line of code adds back wall states to one of the partitions because the rest of the code
-    # expects wall states to be included in the partitions. 
+    # expects wall states to be included in the partitions.
     for wall in a.get_walls():
         partitions[0].append(wall)
 
@@ -89,14 +89,26 @@ if __name__ == '__main__':
     start_time = perf_counter()
     b = Abstraction(a, partitions)
     print('Finished building abstraction')
+    vps = []
     for goal in goals:
-        value, policy = b.plan(goal)
+        vps += [b.plan(goal)]
     end_time = perf_counter()
     delta_time = end_time - start_time
     print('The abstracted version took %.2f seconds to plan over the given goals' % delta_time)
-    plt.imshow(np.array(value).reshape(num_states, num_states))
+
+    for i, vp in enumerate(vps):
+        value, policy = vp
+        for j in range(num_states**2):
+            for r in range(num_states):
+                for c in range(num_states):
+                    if (r,c) != goals[i]:
+                        id_ = r*num_states+c
+                        state = a.states[id_]
+                        value[id_] = sum([value[state.actions[policy[id_]].destinations[l]] * state.actions[policy[id_]].probabilities[l] for l in range(4)]) * .99
+
+    plt.imshow(np.array(vps[0][0]).reshape(num_states, num_states))
     plt.show()
-    plt.imshow(np.array(policy).reshape(num_states, num_states))
+    plt.imshow(np.array(vps[0][1]).reshape(num_states, num_states))
     plt.show()
     # plt.imshow(np.array(value).reshape(25, 25))
     # plt.show()

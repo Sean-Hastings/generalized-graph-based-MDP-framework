@@ -3,6 +3,7 @@ from copy import deepcopy
 import itertools
 import numpy as np
 import time
+from collections import defaultdict
 
 class State():
     def __init__(self, id_, actions):
@@ -55,9 +56,9 @@ class DSAG():
         return goal
 
     def get_adjacent(self, i_state):
-        if not i_state.id in self.adj_memos:
-            self.adj_memos[i_state.id] = [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
-        return self.adj_memos[i_state.id]
+        if not id in self.adj_memos:
+            self.adj_memos[id] = [s.id for s in self.states if any([any([d == i_state for d in a.destinations]) for a in s.actions])]
+        return self.adj_memos[id]
 
     def show(self, goal=0, debug=False):
         goal = self.convert_state(goal)
@@ -95,12 +96,14 @@ class DSAG():
 
         clusters = set()
         neighbor_mapping = dict()
+        cluster_pair_values = defaultdict(lambda: -float('inf'))
+
         for state_id in state_sets:
             cluster = state_sets[state_id]
             clusters.add(cluster)
             neighbors = {state_sets[neighbor] for neighbor in self.get_adjacent_mod(state_id)}
             neighbor_mapping[cluster] = neighbors
-            
+
         while init_cluster_ct > k:
             print("cluster count", len(clusters))
             best_val = -float("inf")
@@ -124,9 +127,10 @@ class DSAG():
             print("second loop")
             for combine1, combine2 in pairs:
                 if combine2 in neighbor_mapping[combine1]:
-                    u = self.dutil(clusters, combine1, combine2, saved_edges)
-                    if u > best_val:
-                        best_val = u
+                    if cluster_pair_values[(combine1, combine2)] < 0:
+                        cluster_pair_values[(combine1, combine2)] = self.dutil(clusters, combine1, combine2, saved_edges)
+                    if cluster_pair_values[(combine1, combine2)] > best_val:
+                        best_val = cluster_pair_values[(combine1, combine2)]
                         best_pair = {combine1, combine2}
             c1, c2 = best_pair
 
