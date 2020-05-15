@@ -105,7 +105,7 @@ class DSAG():
             neighbor_mapping[cluster] = neighbors
 
         while init_cluster_ct > k:
-            print("cluster count", len(clusters))
+            # print("cluster count", len(clusters))
             best_val = -float("inf")
             best_copy = None
 
@@ -124,7 +124,7 @@ class DSAG():
 
             pairs = itertools.combinations(clusters, 2)
 
-            print("second loop")
+            # print("second loop")
             for combine1, combine2 in pairs:
                 if combine2 in neighbor_mapping[combine1]:
                     if cluster_pair_values[(combine1, combine2)] < 0:
